@@ -1,0 +1,80 @@
+version: "3.8"
+
+services:
+  # Database services
+  postgres:
+    container_name: postgres
+    command: postgres -c wal_level=logical
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 1s
+      retries: 10
+      start_period: 5s
+  redis:
+    image: redis
+    command: redis-server --requirepass PLEASE_CHANGE_ME
+    ports:
+    - "6379:6379"
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.2
+    healthcheck:
+      test: ["CMD-SHELL", 'curl -I -s http://localhost:9200/ | grep "200 OK"']
+      interval: 10s
+      timeout: 1s
+      retries: 10
+      start_period: 5s
+    ports:
+      - "9201:9200"
+      - "9200:9200"
+      - "9600:9600"
+      - "9301:9300"
+    environment:
+      - network.host=127.0.0.1
+      - http.host=0.0.0.0
+      - "ES_JAVA_OPTS=-Xms2048m -Xmx2048m"
+  pgsync:
+    restart: on-failure
+    container_name: pgsync
+    build:
+      context: ./pgsync-config
+      dockerfile: Dockerfile # Change to Dockerfile.new to test pull request
+    command: ./run.sh
+    depends_on:
+      - postgres
+      - elasticsearch
+      - redis
+    sysctls:
+      - net.ipv4.tcp_keepalive_time=200
+      - net.ipv4.tcp_keepalive_intvl=200
+      - net.ipv4.tcp_keepalive_probes=5
+    labels:
+      org.label-schema.name: "pgsync"
+      org.label-schema.description: "Postgres to ES sync"
+      com.label-schema.service-type: "daemon"
+    environment:
+      - PG_USER=postgres
+      - PG_HOST=postgres
+      - PG_PASSWORD=password
+      - LOG_LEVEL=INFO
+      - LOG_INTERVAL=5
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_SCHEME=http
+      - ELASTICSEARCH_VERIFY_CERTS=false
+      - ELASTICSEARCH_USER=admin
+      - ELASTICSEARCH_PASSWORD=admin
+      - ELASTICSEARCH_HOST=elasticsearch
+      - REDIS_HOST=redis
+      - POLL_TIMEOUT=.01
+      - REDIS_PORT=6379
+      - REDIS_AUTH=PLEASE_CHANGE_ME
+

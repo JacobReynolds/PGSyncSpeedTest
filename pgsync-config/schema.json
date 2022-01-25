@@ -1,0 +1,27 @@
+[
+  {
+    "database": "postgres",
+    "index": "numbers",
+    "nodes": {
+      "table": "numbers",
+      "columns": ["id", "item"],
+      "transform": {
+        "mapping": {
+          "_all": {
+            "type": "text"
+          },
+          "item": {
+            "type": "text",
+            "copy_to": "_all",
+            "fields": {
+              "keyword": {
+                "type": "keyword",
+                "ignore_above": 256
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+]

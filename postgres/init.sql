@@ -1,0 +1,1 @@
+create table if not exists numbers (id bigserial primary key, item bigint);
